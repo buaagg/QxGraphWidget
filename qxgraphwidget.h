@@ -1,10 +1,13 @@
 ﻿#ifndef QXGRAPHWIDGET_H
 #define QXGRAPHWIDGET_H
 
+
 // 2013-10-04
 
 #include <QWidget>
 #include <QtCore>
+#include <QPen>
+#include <QTime>
 
 //*******************************************************************
 //
@@ -14,7 +17,7 @@
 
 enum  QxGraphChannelType {
     TypeAnalog,
-    TypeSwitch,
+    TypeSwitch
 };
 
 enum QxGraphChannelPointStyle {
@@ -34,14 +37,22 @@ enum QxGraphChannelPointStyle {
     PointStyleHollowTriangleUpward,
     PointStyleHollowTriangleDownward,
     PointStyleHollowTriangleLeftward,
-    PointStyleHollowTriangleRightward,
+    PointStyleHollowTriangleRightward
 };
 
-class QxGraphChannelInfo
-{
-public:
-    QxGraphChannel();
+typedef int QxGraphChannelId;
+const QxGraphChannelId QX_GRAPH_CHANNEL_ID_INVALID = -1; // 无效通道 ID
 
+typedef float QxGraphData;
+typedef QxGraphData QxGraphAnalogData;
+typedef QxGraphData QxGraphSwitchData;
+const QxGraphAnalogData QX_GRAPH_ANALOG_DATA_INVALID = FLT_MAX;
+const QxGraphSwitchData QX_GRAPH_SWITCH_DATA_TRUE = 1;
+const QxGraphSwitchData QX_GRAPH_SWITCH_DATA_FALSE = 0;
+const QxGraphSwitchData QX_GRAPH_SWITCH_DATA_INVALID = -1;
+
+struct QxGraphChannelInfo
+{
     // 1. 通道名
     // 2. 类型: 布尔，浮点
     // 3. 仅浮点类型有效:
@@ -49,20 +60,11 @@ public:
     //    2. 数据单位
     QString name;
     QxGraphChannelType type;
-    QxGraphAnalogData upper_bound;
-    QxGraphAnalogData lower_bound;
-    QString unit;
+    QxGraphAnalogData upper_bound; //TODO:???????
+    QxGraphAnalogData lower_bound; //TODO:???????
+    QString unit; //数据单位
 };
 
-#define QxGraphChannelId                int
-#define QX_GRAPH_CHANNEL_ID_INVALID     -1      // 无效通道 ID
-
-#define QxGraphAnalogData               float
-#define QxGraphSwitchData               float
-#define QX_GRAPH_ANALOG_DATA_INVALID FLT_MAX
-#define QX_GRAPH_SWITCH_DATA_TRUE QxGraphSwitchData(1)
-#define QX_GRAPH_SWITCH_DATA_FALSE QxGraphSwitchData(0)
-#define QX_GRAPH_SWITCH_DATA_INVALID QxGraphSwitchData(-1)
 
 // TODO: 其他定义：
 // 1. 布尔通道高度
@@ -81,7 +83,7 @@ public:
     QTime startTime;
     int interval; // by second
     QxGraphChannelType dataType;
-    QVector<float> data; // TODO: 好假
+    QVector<QxGraphData> data;
 };
 
 class QxGraphScaleLevel {
@@ -110,69 +112,68 @@ public slots:
     // ** 缩放比例、数据分层设置
 
     // 设置当前缩放尺度
-    void setScaleLevel( QVector<QxGraphScaleLevel> );
-        // This must be invoked before anything
-
-    QxGraphScaleLevel currentScaleLevel() const;
+    void setScaleLevel( const QVector<QxGraphScaleLevel>& ); // This must be invoked before anything
+    QxGraphScaleLevel getCurrentScaleLevel() const;
 
     //---------------------------------
     // ** 数据、通道操作
 
     // 创建/删除通道 (0-8 条)
-    QxGraphChannelId createChannel( const QxGraphChannel &c, short priority = 0, calcProxy = calcMeanProxy );
+    QxGraphChannelId createChannel( QxGraphChannelType c, short priority = 0, calcProxy proxy = calcMeanProxy );
         //我负责释放QxGraphCalcProxy
         //对于bool值的变量，priority大的放在上面，相同的话，由我决定，
-    void deleteChannel( const QxGraphChannelId );
+    void deleteChannel( QxGraphChannelId );
     void clearChannel();
 
     // 通道是否存在
-    bool containsChannel( const QxGraphChannelId ) const; // containsChannel( QXGRAPHCHANNELID_INVALID ) is false.
+    bool containsChannel( QxGraphChannelId ) const; // containsChannel( QXGRAPHCHANNELID_INVALID ) is false.
 
     // 通道数量
-    int countChannel() const;
+    int getChannelCount() const;
 
     // 通道数据数量
-    int countChannelData( const QxGraphChannelId ) const; // If containsChannel( QxGraphChannelId ) is false, returns 0
+    int getChannelDataCount( QxGraphChannelId ) const; // If containsChannel( QxGraphChannelId ) is false, returns 0
     QxGraphChannelInfo getChannelInfo( const QxGraphChannelId ) const; // If containsChannel( QxGraphChannelId ) is false, the behaviour is undefined.
 
     // 添加数据
     //    1. 块添加
     //    2. 逐点添加
-    bool addData( const QxGraphChannelId, const QxGraphBatchData *pData ); // 我负责释放QxGraphBatchData
-    bool addData( const QxGraphChannelId, const QTime &t, const QxGraphAnalogData &d );
-    bool addData( const QxGraphChannelId, const QTime &t, const QxGraphSwitchData &d );
+    bool addBatchData ( QxGraphChannelId, const QxGraphBatchData *pData ); // 我负责释放QxGraphBatchData
+    bool addAnalogData( QxGraphChannelId, const QTime &t, const QxGraphAnalogData &d );
+    bool addSwitchData( QxGraphChannelId, const QTime &t, const QxGraphSwitchData &d );
         // 如果containsChannel( QxGraphChannelId )是false，则返回false
         // 或者buffer满了，则发射异常信号，并返回false
         // 如果数据类型非法，则返回false，并且什么都不做。
         // 如果时间重叠，后续重叠数据直接丢弃，并放回false
+
     float getProgress( const QxGraphChannelId ) const;
     float getProgress() const; // 最慢的
 
     // 根据时间获取数据
-    QxGraphAnalogData getDataByTime( const QxGraphChannelId, const QTime& t );
-    QxGraphSwitchData getDataByTime( const QxGraphChannelId, const QTime& t );
+    QxGraphAnalogData getAnalogDataByTime( QxGraphChannelId, const QTime& t );
+    QxGraphSwitchData getSwitchDataByTime( QxGraphChannelId, const QTime& t );
     // 约束
         // 如果containsChannel( QxGraphChannelId )是false，则返回QX_GRAPH_ANALOG_DATA_INVALID / QX_GRAPH_SWITCH_DATA_INVALID
         // 如果数据类型非法，则返回*_INVALID，并且什么都不做。
         // 返回的是rawData所对应的Data，QTime只保留到秒，其余丢弃
 
     // 返回某通道全部值中的最大值、最小值
-    pair<QxGraphAnalogData, QxGraphAnalogData> getDataRange( const QxGraphChannelId ) const;
+    std::pair<QxGraphAnalogData, QxGraphAnalogData> getDataRange( QxGraphChannelId ) const;
         // 返回第一个分量为最小值，第二个分量为最大值
         // 如果containsChannel( QxGraphChannelId )是false，则返回 make_pair(QX_GRAPH_ANALOG_DATA_INVALID,QX_GRAPH_ANALOG_DATA_INVALID)
         // 如果该Channel为空，则返回 make_pair(QX_GRAPH_ANALOG_DATA_INVALID,QX_GRAPH_ANALOG_DATA_INVALID)
 
     // 按通道清空数据
     // 清空所有数据
-    void clearData( const QxGraphChannelId );
+    void clearData( QxGraphChannelId );
     void clearAllData();
         // 如果containsChannel( QxGraphChannelId )是false，则什么都不做
 
     // 显示、隐藏通道
-    void hideChannel(const QxGraphChannelId);
-    void showChannel(const QxGraphChannelId);
+    void hideChannel(QxGraphChannelId);
+    void showChannel(QxGraphChannelId);
         // 如果containsChannel( QxGraphChannelId )是false，则什么都不做
-    bool getVisualable( const QxGraphChannelId ) const;
+    bool getVisible( const QxGraphChannelId ) const;
         // 如果containsChannel( QxGraphChannelId )是false，则返回false
 
     // ## 焦点通道可有多条，每条焦点通道都需要显示 Y 轴
@@ -188,7 +189,7 @@ public slots:
     void clearFocusChannel();
 
     // 修改某通道 Y 轴上下限
-    void modifyChannelRange( const QxGraphChannelId, QxGraphAnalogData lower_bound, QxGraphAnalogData upper_bound );
+    void modifyChannelRange( QxGraphChannelId, QxGraphAnalogData lower_bound, QxGraphAnalogData upper_bound );
 
     //---------------------------------
     // ** 样式操作
@@ -200,11 +201,11 @@ public slots:
     void setGridColor( const QColor& c );
     QColor getGridColor() const;
     // 设置通道线样式 (粗细、线样式)
-    void setLineStyle( const QxGraphChannelId, const QPen& );
-    QPen getLineStyle( const QxGraphChannelId ) const;
+    void setLineStyle( QxGraphChannelId, const QPen& );
+    QPen getLineStyle( QxGraphChannelId ) const;
     // 设置通道颜色 (浮点、布尔都用这个设置)
-    void setChannelColor( const QxGraphChannelId, const QColor& c );
-    QColor getChannelColor( const QxGraphChannelId );
+    void setChannelColor( QxGraphChannelId, const QColor& c );
+    QColor getChannelColor( QxGraphChannelId );
     // 设置时间轴，焦点轴线样式
     void setTimeAxisStyle( const QPen&  );
     QPen getTimeAxisStyle( ) const;
@@ -232,7 +233,7 @@ public slots:
     QTime getTimeAxis();
     void showTimeAxis();
     void hideTimeAxis();
-    bool isTimeAxisVisualable() const;
+    bool isTimeAxisVisible() const;
     bool isAutoMove() const;
 
     //---------------------------------
@@ -259,6 +260,7 @@ public slots:
     void setChannelPointStyle( const QxGraphChannelId, QxGraphChannelPointStyle = PointStyleNone );
     QxGraphChannelPointStyle getChannelPointStyle( const QxGraphChannelId );
 
+
 signals:
     // 异常信号
     void errorInvoked( QString );
@@ -277,6 +279,11 @@ signals:
     // TODO: 批量数据处理进度信号、100% 就是处理完成信号
 
     void scaleLevelChanged( const QxGraphScaleLevel );
+
+private:
+    void paintEvent( QPaintEvent *event );
 };
+
+
 
 #endif // QXGRAPHWIDGET_H
